@@ -35,7 +35,14 @@ char peek(TileStack chars) {
 
 GameState currentState;
 
+
+int amountOfStates;
+GameState *gamestates;
+
 GameState* initialize_game_state(const char *filename) {
+    gamestates = malloc(1*sizeof(GameState));
+    amountOfStates = 1;
+
     FILE *inputfile;
     inputfile = fopen(filename, "r");
     if (inputfile == NULL) {
@@ -110,9 +117,13 @@ GameState* initialize_game_state(const char *filename) {
     currentState.currentBoard = board;
     currentState.boardDepth = depth;
     fclose(inputfile);
-    GameState *ptr = &currentState;
-    return ptr;
+    gamestates[0] = currentState;
+    return &gamestates[0];
 }
+
+
+
+
 
 GameState* place_tiles(GameState *game, int row, int col, char direction, const char *tiles, int *num_tiles_placed) {
     (void)row;
@@ -140,6 +151,8 @@ void free_game_state(GameState *game) {
         free((*game).boardDepth[i]);
     }
     free((*game).boardDepth);
+
+    free(gamestates);
 }
 
 void save_game_state(GameState *game, const char *filename) {
