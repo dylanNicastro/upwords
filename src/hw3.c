@@ -124,11 +124,22 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
 }
 
 GameState* undo_place_tiles(GameState *game) {
+    if ((*game).prevGameState != NULL) {
+        return (*game).prevGameState;
+    }
     return game;
 }
 
 void free_game_state(GameState *game) {
-    (void)game;
+    for (int i = 0; i < (*game).boardHeight; i++) {
+        free((*game).currentBoard[i]);
+    }
+    free((*game).currentBoard);
+
+    for (int i = 0; i < (*game).boardHeight; i++) {
+        free((*game).boardDepth[i]);
+    }
+    free((*game).boardDepth);
 }
 
 void save_game_state(GameState *game, const char *filename) {
