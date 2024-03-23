@@ -1,8 +1,18 @@
 #include <stdlib.h>
 
+typedef struct TileStack
+{
+    char stack[5];
+    int top;
+} TileStack;
+
 typedef struct GameState
 {
-    // define your struct here
+    int boardHeight;
+    int boardWidth;
+    TileStack** currentBoard;
+    int** boardDepth;
+    struct GameState* prevGameState;
 } GameState;
 
 GameState* initialize_game_state(const char *filename);
