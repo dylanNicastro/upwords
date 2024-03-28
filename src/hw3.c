@@ -23,7 +23,6 @@ int pop(TileStack *chars) {
     }
     (*chars).top--;
     return 0;
-    
 }
 
 char peek(TileStack chars) {
@@ -31,6 +30,21 @@ char peek(TileStack chars) {
         return '.';
     }
     return chars.stack[chars.top];
+}
+
+void changepush(ChangeStack *changes, Change c) {
+    (*changes).stack[++(*changes).top] = c;
+}
+
+void changepop(ChangeStack *changes) {
+    (*changes).top--;
+}
+
+Change* changepeek(ChangeStack changes) {
+    if (changes.top == -1) {
+        return NULL;
+    }
+    return &(changes.stack[changes.top]);
 }
 
 int depthSum(GameState *game) {
@@ -73,14 +87,19 @@ void load_dict(char*** dict, int* dict_memsize, int* dict_elements) {
             (*dict)[*dict_elements][i] = buffer[i];
         }
         (*dict)[*dict_elements][(int)strlen(buffer)] = '\0';
+        //printf("%s, Index = %d\n", (*dict)[*dict_elements], *dict_elements);
         (*dict_elements)++;
     }
     fclose(wordsList);
     *dict_memsize = (*dict_elements)*sizeof(char*);
+    //printf("dict memsize: %d\n", *dict_memsize);
     *dict = realloc(*dict, *dict_memsize);
 }
 
 int checkWord(char* word, char*** dict, int left, int right) {
+    if (strcmp((*dict)[left],word) == 0 || strcmp((*dict)[right],word) == 0) {
+        return 1;
+    }
     if (right >= left) {
         int middle = left + (right - left) / 2;
         int compare = strcmp((*dict)[middle], word);
@@ -122,9 +141,9 @@ int parseWords(GameState *game, char direction, int startindex, char*** dict, in
 
         char* word = strtok(line,".");
         while (word != NULL) {
-            //printf("Checking %s\n", word);
+            printf("Checking %s\n", word);
             if (checkWord(word, dict, 0, (*dict_elements)-1) == 0) {
-                //printf("Word was illegal!\n");
+                printf("Word was illegal!\n");
                 illegalWord = 1;
                 break;
             }
@@ -142,9 +161,9 @@ int parseWords(GameState *game, char direction, int startindex, char*** dict, in
 
             char* word = strtok(line,".");
             while (word != NULL) {
-                //printf("Checking %s\n", word);
+                printf("Checking %s\n", word);
                 if (checkWord(word, dict, 0, (*dict_elements)-1) == 0) {
-                    //printf("Word was illegal!\n");
+                    printf("Word was illegal!\n");
                     illegalWord = 1;
                     break;
                 }
@@ -274,6 +293,7 @@ int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int st
 
 //ChangeStack changes;
 GameState currentState;
+ChangeStack changes;
 
 char** dict;
 int dict_memsize;
@@ -355,6 +375,9 @@ GameState* initialize_game_state(const char *filename) {
     fflush(inputfile);
     fclose(inputfile);
 
+
+    changes.top = -1;
+    changes.stack = malloc((changes.top+1)*sizeof(Change));
     
     load_dict(&dict, &dict_memsize, &dict_elements);
     return &currentState;
@@ -369,8 +392,14 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         return game;
     }
 
+    Change change;
     int newheight = (*game).boardHeight;
     int newwidth = (*game).boardWidth;
+    change.oldHeight = newheight;
+    change.oldWidth = newwidth;
+    change.amountOfTiles = 0;
+    change.tile_positions = malloc(change.amountOfTiles*sizeof(int*));
+
     if (direction == 'H') {
         if (row > (*game).boardHeight-1) {
             return game;
@@ -440,7 +469,6 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     //newchange.tiles = tiles;
 
     // for each char in the tiles string:
-    int tiles_placed = 0;
     for (int i = 0; i < (int)(strlen(tiles)); i++) {
         // if it is not a space:
         if (tiles[i] != ' ') {
@@ -452,7 +480,11 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                 if ((*game).boardDepth[row+i][col] < 5) {
                     (*game).boardDepth[row+i][col]++;
                     push(&(*game).currentBoard[row+i][col], tiles[i]);
-                    tiles_placed++;
+                    change.amountOfTiles++;
+                    change.tile_positions = realloc(change.tile_positions, change.amountOfTiles*sizeof(int*));
+                    change.tile_positions[change.amountOfTiles-1] = malloc(2*sizeof(int)); 
+                    change.tile_positions[change.amountOfTiles-1][0] = row+i;
+                    change.tile_positions[change.amountOfTiles-1][1] = col;
                     //printf("Added %c to the board position [%d][%d]\n", tiles[i], row+i, col);
                 }
                 else {
@@ -470,7 +502,11 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                 if ((*game).boardDepth[row][col+i] < 5) {
                     (*game).boardDepth[row][col+i]++;
                     push(&(*game).currentBoard[row][col+i], tiles[i]);
-                    tiles_placed++;
+                    change.amountOfTiles++;
+                    change.tile_positions = realloc(change.tile_positions, change.amountOfTiles*sizeof(int*));
+                    change.tile_positions[change.amountOfTiles-1] = malloc(2*sizeof(int)); 
+                    change.tile_positions[change.amountOfTiles-1][0] = row;
+                    change.tile_positions[change.amountOfTiles-1][1] = col+i;
                     //printf("Added %c to the board position [%d][%d]\n", tiles[i], row, col+i);
                 }
                 else {
@@ -483,9 +519,10 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
             }
         }
     }
-    *num_tiles_placed = tiles_placed;
-
-
+    *num_tiles_placed = change.amountOfTiles;
+    
+    changepush(&changes, change);
+    //printf("%d\n",change.amountOfTiles);
 
     int startindex;
     if (direction == 'V') {
@@ -495,8 +532,8 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         startindex = row;
     }
 
-    
     if (parseWords(game, direction, startindex, &dict, &dict_elements) == 1) {
+        
         //printf("Illegal word detected!\n");
         undo_place_tiles(game);
         for (int i = 0; i < newheight; i++) {
@@ -506,7 +543,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         return game;
     }
     else {
-        //printf("All words found were legal.\n");
+        printf("All words found were legal.\n");
     }
 
 
@@ -534,7 +571,35 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
 }
 
 GameState* undo_place_tiles(GameState *game) {
-    //printf("No good!");
+    Change* recentchange = changepeek(changes);
+    if (recentchange == NULL) {
+        return game;
+    }
+    for (int i = 0; i < (*recentchange).amountOfTiles; i++) {
+        pop(&(*game).currentBoard[(*recentchange).tile_positions[i][0]][(*recentchange).tile_positions[i][1]]);
+        (*game).boardDepth[(*recentchange).tile_positions[i][0]][(*recentchange).tile_positions[i][1]]--;
+        //printf("Freeing tile %d in change\n", i);
+        free((*recentchange).tile_positions[i]);
+    }
+    //printf("Freeing tilepositions\n");
+    free((*recentchange).tile_positions);
+    
+    if ((*game).boardHeight != (*recentchange).oldHeight || (*game).boardWidth != (*recentchange).oldWidth) {
+        //printf("Reverting from [%d][%d] to [%d][%d]\n", (*game).boardHeight,(*game).boardWidth,(*recentchange).oldHeight,(*recentchange).oldWidth);
+        (*game).boardHeight = (*recentchange).oldHeight;
+        (*game).boardWidth = (*recentchange).oldWidth;
+        //printf("Realloc'ing currentBoard and currentDepth to %d\n", (*game).boardHeight);
+        (*game).currentBoard = realloc((*game).currentBoard, (*game).boardHeight*sizeof(TileStack*));
+        (*game).boardDepth = realloc((*game).boardDepth, (*game).boardHeight*sizeof(int*));
+        for (int i = 0; i < (*game).boardHeight; i++) {
+            //printf("Realloc'ing currentBoard and currentDepth row %d\n", i);
+            (*game).currentBoard[i] = realloc((*game).currentBoard[i], (*game).boardWidth*sizeof(TileStack));
+            (*game).boardDepth[i] = realloc((*game).boardDepth[i], (*game).boardWidth*sizeof(int));
+        }
+    }
+    changepop(&changes);
+    //printf("Top: %d\nPeek at top of stack change's amount of tiles: %d\n",(changes.top), (*changepeek(changes)).amountOfTiles);
+    //changes.stack = realloc(changes.stack, (changes.top+1)*sizeof(Change));
     return game;
 }
 
@@ -543,12 +608,18 @@ void free_game_state(GameState *game) {
         free((*game).boardDepth[i]);
         free((*game).currentBoard[i]);
     }
-    for (int i = 0; i < dict_elements; i++) {
-        free(dict[i]);
-    }
+    //printf("dict elements: %d\n", dict_elements);
+    // printf("dict[0] = %s\n",dict[0]);
+    // for (int i = 0; i < dict_elements; i++) {
+    //     free(dict[i]);
+    // }
+    
     free(dict);
     free((*game).boardDepth);
     free((*game).currentBoard);
+    if (changes.top != -1) {
+        free(changes.stack);
+    }
 }
 
 void save_game_state(GameState *game, const char *filename) {

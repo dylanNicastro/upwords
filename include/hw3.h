@@ -22,13 +22,6 @@ typedef struct Change
     int** tile_positions;
 } Change;
 
-typedef struct Words
-{
-    int amountOfWords;
-    char** words;
-    int** word_starting_index;
-} Words;
-
 typedef struct ChangeStack
 {
     Change* stack;
