@@ -53,34 +53,58 @@ int nonSpaceChars(const char *str) {
     return count;
 }
 
-int checkWord(char* word) {
+void load_dict(char*** dict, int* dict_memsize, int* dict_elements) {
     FILE *wordsList;
+    *dict_elements = 0;
+    *dict_memsize = 1*sizeof(char*);
+    *dict = malloc(*dict_memsize);
     wordsList = fopen("tests/words.txt", "r");
-    int wordIsLegal = 0;
-    char *dictWord = malloc(47*sizeof(char));
-    while (fscanf(wordsList, "%s%*c", dictWord) == 1) {
-        for (int i = 0; dictWord[i] != '\0'; i++) {
-            dictWord[i] = toupper(dictWord[i]);
+    char buffer[50]; // THE LONGEST ENGLISH WORD IS 45 CHARACTERS
+    while (fscanf(wordsList, "%49s%*c", buffer) == 1) {
+        for (int i = 0; buffer[i] != '\0'; i++) {
+            buffer[i] = toupper(buffer[i]);
         }
-        if (strcmp(dictWord, word) == 0) {
-            wordIsLegal = 1;
-            break;
+        if ((int)((*dict_memsize)/sizeof(char*)) == (*dict_elements)) {
+            *dict_memsize = (*dict_memsize) * 2;
+            *dict = realloc(*dict, *dict_memsize);
         }
+        (*dict)[*dict_elements] = malloc((strlen(buffer)+1)*sizeof(char));
+        for (int i = 0; i < (int)strlen(buffer); i++) {
+            (*dict)[*dict_elements][i] = buffer[i];
+        }
+        (*dict)[*dict_elements][(int)strlen(buffer)] = '\0';
+        (*dict_elements)++;
     }
-    free(dictWord);
-    fflush(wordsList);
     fclose(wordsList);
-    return wordIsLegal;
+    *dict_memsize = (*dict_elements)*sizeof(char*);
+    *dict = realloc(*dict, *dict_memsize);
 }
 
-int parseWords(GameState game, char direction, int startindex) {
+int checkWord(char* word, char*** dict, int left, int right) {
+    if (right >= left) {
+        int middle = left + (right - left) / 2;
+        int compare = strcmp((*dict)[middle], word);
+        if (compare == 0) {
+            return 1;
+        }
+        if (compare > 0) {
+            return checkWord(word, dict, left, middle-1);
+        }
+        else {
+            return checkWord(word, dict, middle+1, right);
+        }
+    }
+    return 0;
+}
+
+int parseWords(GameState *game, char direction, int startindex, char*** dict, int* dict_elements) {
     //printf("Starting parsing with boardheight = %d, boardwidth = %d\n",game.boardHeight, game.boardWidth);
     int illegalWord = 0;
-    char *line = malloc((game.boardWidth + 1)*sizeof(char));
+    char *line = malloc(((*game).boardWidth + 1)*sizeof(char));
     int startrow = 0;
-    int endrow = game.boardHeight;
+    int endrow = (*game).boardHeight;
     int startcol = 0;
-    int endcol = game.boardWidth;
+    int endcol = (*game).boardWidth;
     if (direction == 'H') {
         startrow = startindex;
         endrow = startindex+1;
@@ -91,15 +115,15 @@ int parseWords(GameState game, char direction, int startindex) {
     }
     for (int i = startrow; i < endrow; i++) {
         int j = 0;
-        for (j = 0; j < game.boardWidth; j++) {
-            line[j] = peek(game.currentBoard[i][j]);
+        for (j = 0; j < (*game).boardWidth; j++) {
+            line[j] = peek((*game).currentBoard[i][j]);
         }
         line[j] = '\0';
 
         char* word = strtok(line,".");
         while (word != NULL) {
             //printf("Checking %s\n", word);
-            if (checkWord(word) == 0) {
+            if (checkWord(word, dict, 0, (*dict_elements)-1) == 0) {
                 //printf("Word was illegal!\n");
                 illegalWord = 1;
                 break;
@@ -108,18 +132,18 @@ int parseWords(GameState game, char direction, int startindex) {
         }
     }
     if (illegalWord == 0) {
-        line = realloc(line, (game.boardHeight + 1)*sizeof(char));
+        line = realloc(line, ((*game).boardHeight + 1)*sizeof(char));
         for (int j = startcol; j < endcol; j++) {
             int i = 0;
-            for (i = 0; i < game.boardHeight; i++) {
-                line[i] = peek(game.currentBoard[i][j]);
+            for (i = 0; i < (*game).boardHeight; i++) {
+                line[i] = peek((*game).currentBoard[i][j]);
             }
             line[i] = '\0';
 
             char* word = strtok(line,".");
             while (word != NULL) {
                 //printf("Checking %s\n", word);
-                if (checkWord(word) == 0) {
+                if (checkWord(word, dict, 0, (*dict_elements)-1) == 0) {
                     //printf("Word was illegal!\n");
                     illegalWord = 1;
                     break;
@@ -132,15 +156,15 @@ int parseWords(GameState game, char direction, int startindex) {
     return illegalWord;
 }
 
-int checkForCoveredWords(GameState game, int** oldDepth, char direction, int startindex) {
+int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int startindex) {
     int coveredWord = 0;
-    char *line = malloc((game.boardWidth + 1)*sizeof(char));
-    char *oldline = malloc((game.boardWidth + 1)*sizeof(char));
+    char *line = malloc(((*game).boardWidth + 1)*sizeof(char));
+    char *oldline = malloc(((*game).boardWidth + 1)*sizeof(char));
     if (direction == 'H') {
         for (int i = startindex; i < startindex+1; i++) {
             int j = 0;
-            for (j = 0; j < game.boardWidth; j++) {
-                line[j] = game.boardDepth[i][j] + '0';
+            for (j = 0; j < (*game).boardWidth; j++) {
+                line[j] = (*game).boardDepth[i][j] + '0';
                 oldline[j] = oldDepth[i][j] + '0';
 
             }
@@ -191,12 +215,12 @@ int checkForCoveredWords(GameState game, int** oldDepth, char direction, int sta
     }
 
     if (direction == 'V') {
-        line = realloc(line, (game.boardHeight + 1)*sizeof(char));
-        oldline = realloc(oldline, (game.boardHeight + 1)*sizeof(char));
+        line = realloc(line, ((*game).boardHeight + 1)*sizeof(char));
+        oldline = realloc(oldline, ((*game).boardHeight + 1)*sizeof(char));
         for (int j = startindex; j < startindex+1; j++) {
             int i = 0;
-            for (i = 0; i < game.boardHeight; i++) {
-                line[i] = game.boardDepth[i][j] + '0';
+            for (i = 0; i < (*game).boardHeight; i++) {
+                line[i] = (*game).boardDepth[i][j] + '0';
                 oldline[i] = oldDepth[i][j] + '0';
 
             }
@@ -251,8 +275,11 @@ int checkForCoveredWords(GameState game, int** oldDepth, char direction, int sta
 //ChangeStack changes;
 GameState currentState;
 
-GameState* initialize_game_state(const char *filename) {
+char** dict;
+int dict_memsize;
+int dict_elements;
 
+GameState* initialize_game_state(const char *filename) {
     FILE *inputfile;
     inputfile = fopen(filename, "r");
     if (inputfile == NULL) {
@@ -327,6 +354,9 @@ GameState* initialize_game_state(const char *filename) {
     currentState.boardDepth = depth;
     fflush(inputfile);
     fclose(inputfile);
+
+    
+    load_dict(&dict, &dict_memsize, &dict_elements);
     return &currentState;
 }
 
@@ -465,7 +495,8 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         startindex = row;
     }
 
-    if (parseWords(*game, direction, startindex) == 1) {
+    
+    if (parseWords(game, direction, startindex, &dict, &dict_elements) == 1) {
         //printf("Illegal word detected!\n");
         undo_place_tiles(game);
         for (int i = 0; i < newheight; i++) {
@@ -479,7 +510,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     }
 
 
-    if (checkForCoveredWords(*game, depthcopy, direction, startindex) == 1) {
+    if (checkForCoveredWords(game, depthcopy, direction, startindex) == 1) {
         //printf("A word was covered!\n");
         undo_place_tiles(game);
         for (int i = 0; i < newheight; i++) {
@@ -512,6 +543,10 @@ void free_game_state(GameState *game) {
         free((*game).boardDepth[i]);
         free((*game).currentBoard[i]);
     }
+    for (int i = 0; i < dict_elements; i++) {
+        free(dict[i]);
+    }
+    free(dict);
     free((*game).boardDepth);
     free((*game).currentBoard);
 }
