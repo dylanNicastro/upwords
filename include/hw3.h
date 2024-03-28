@@ -12,8 +12,28 @@ typedef struct GameState
     int boardWidth;
     TileStack** currentBoard;
     int** boardDepth;
-    struct GameState* prevGameState;
 } GameState;
+
+typedef struct Change
+{
+    int oldHeight;
+    int oldWidth;
+    int amountOfTiles;
+    int** tile_positions;
+} Change;
+
+typedef struct Words
+{
+    int amountOfWords;
+    char** words;
+    int** word_starting_index;
+} Words;
+
+typedef struct ChangeStack
+{
+    Change* stack;
+    int top;
+} ChangeStack;
 
 GameState* initialize_game_state(const char *filename);
 GameState* place_tiles(GameState *game, int row, int col, char direction, const char *tiles, int *num_tiles_placed);
