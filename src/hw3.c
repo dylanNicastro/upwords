@@ -148,6 +148,7 @@ int parseWords(GameState *game, char direction, int startindex, char*** dict, in
                 illegalWord = 1;
                 break;
             }
+            //printf("Word was legal!\n");
             word = strtok(NULL,".");
         }
     }
@@ -176,38 +177,108 @@ int parseWords(GameState *game, char direction, int startindex, char*** dict, in
     return illegalWord;
 }
 
-// int checkForTouchingWords(GameState *game, int** oldDepth, char direction, int startindex) {
-//     int touchingWord = 0;
-//     char *depthline = malloc(((*game).boardWidth + 1)*sizeof(char));
-//     char *olddepthline = malloc(((*game).boardWidth + 1)*sizeof(char));
-//     if (direction == 'H') {
-//         int endindex = startindex+2;
-//         if (startindex == 0) {
-//             startindex = 2;
-//             endindex = 2;
-//         }
-//         else if (startindex == (*game).boardHeight-1) {
-//             startindex;
-//             endindex = startindex;
-//         }   
-//         for (int i = startindex-1; i < endindex && i != startindex; i++) {
-//             printf("%d\n",i);
-//             int j = 0;
-//             for (j = 0; j < (*game).boardWidth; j++) {
-//                 depthline[j] = (*game).boardDepth[i][j] + '0';
-//                 olddepthline[j] = oldDepth[i][j] + '0';
-//             }
-//             depthline[j] = '\0';
-//             olddepthline[j] = '\0';
-//             if (atoi(depthline) > 0) {
-//                 touchingWord = 1;
-//             }
-//         }
+int checkForTouchingWords(GameState *game, int** oldDepth, char direction, int startindex) {
+    int touchingWord = 0;
+    char *line = malloc(((*game).boardWidth + 1)*sizeof(char));
+    if (direction == 'H') {
+        for (int j = 0; j < (*game).boardWidth; j++) {
+            line[j] = (*game).boardDepth[startindex][j] + '0';
+        }
+        line[(*game).boardWidth] = '\0';
+        //printf("%s\n", line);
 
-//     }
-//     free(depthline);
-//     free(olddepthline);
-// }
+        char* word = strtok(line,"0");
+        while (word != NULL) {
+            touchingWord = 0;
+            //printf("New: %s\n", word);
+            int wordstartindex = word-line;
+            int wordendindex = wordstartindex+(int)strlen(word);
+            for (int i = wordstartindex; i < wordendindex; i++) {
+                if (i > wordstartindex) {
+                    //printf("oldDepth[%d][%d] = %d\n", startindex, i-1, oldDepth[startindex][wordstartindex-1]);
+                    if (oldDepth[startindex][i-1] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+                if (startindex > 0) {
+                    if (oldDepth[startindex-1][i] != 0) {
+                        touchingWord = 1;
+
+                    }
+                }
+                if (startindex < (*game).boardHeight-1) {
+                    if (oldDepth[startindex+1][i] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+                if (wordendindex < (*game).boardWidth-1) {
+                    if (oldDepth[startindex][i+1] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+            }
+            
+            word = strtok(NULL, "0");
+            if (touchingWord == 0) {
+                free(line);
+                return 0;
+            }
+        }
+        
+    }
+    if (direction == 'V') {
+        line = realloc(line, ((*game).boardHeight + 1)*sizeof(char));
+        for (int j = 0; j < (*game).boardHeight; j++) {
+            line[j] = (*game).boardDepth[j][startindex] + '0';
+        }
+        line[(*game).boardHeight] = '\0';
+        //printf("%s\n", line);
+
+        char* word = strtok(line,"0");
+        while (word != NULL) {
+            touchingWord = 0;
+            //printf("New: %s\n", word);
+            int wordstartindex = word-line;
+            int wordendindex = wordstartindex+(int)strlen(word);
+            //printf("Word is from index %d to %d\n", wordstartindex, wordendindex-1);
+            for (int i = wordstartindex; i < wordendindex; i++) {
+                if (i > wordstartindex) {
+                    //printf("oldDepth[%d][%d] = %d\n", wordstartindex-1, startindex, oldDepth[wordstartindex-1][startindex]);
+                    if (oldDepth[i-1][startindex] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+                if (startindex > 0) {
+                    //printf("oldDepth[%d][%d] = %d\n", i, startindex-1, oldDepth[i][startindex-1]);
+                    if (oldDepth[i][startindex-1] != 0) {
+                        touchingWord = 1;
+
+                    }
+                }
+                if (startindex < (*game).boardWidth-1) {
+                    //printf("oldDepth[%d][%d] = %d\n", i, startindex+1, oldDepth[i][startindex+1]);
+                    if (oldDepth[i][startindex+1] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+                if (wordendindex < (*game).boardHeight-1) {
+                    //printf("oldDepth[%d][%d] = %d\n", wordendindex, startindex, oldDepth[wordendindex][startindex]);
+                    if (oldDepth[i+1][startindex] != 0) {
+                        touchingWord = 1;
+                    }
+                }
+            }
+            
+            word = strtok(NULL, "0");
+            if (touchingWord == 0) {
+                free(line);
+                return 0;
+            }
+        }
+    }
+    free(line);
+    return 1;
+}
 
 
 int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int startindex) {
@@ -432,10 +503,15 @@ GameState* initialize_game_state(const char *filename) {
 
 GameState* place_tiles(GameState *game, int row, int col, char direction, const char *tiles, int *num_tiles_placed) {
     if (row < 0 || col < 0 || (direction != 'V' && direction != 'H')) { // basic checks for row, col, direction
+        *num_tiles_placed = 0;
         return game;
     }
+
+    int prevdepth = depthSum(game);
     // if it is the first word on the board and it is 1 or less letters:
-    if (depthSum(game) == 0 && nonSpaceChars(tiles) < 2) {
+    //printf("%s - Len without spaces: %d\n", tiles, nonSpaceChars(tiles));
+    if (prevdepth == 0 && nonSpaceChars(tiles) < 2) {
+        *num_tiles_placed = 0;
         return game;
     }
 
@@ -445,10 +521,11 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     change.oldHeight = newheight;
     change.oldWidth = newwidth;
     change.amountOfTiles = 0;
-    change.tile_positions = malloc(change.amountOfTiles*sizeof(int*));
 
     if (direction == 'H') {
-        if (row > (*game).boardHeight-1) {
+        if (col > (*game).boardWidth-1) {
+            *num_tiles_placed = 0;
+            //printf("Col too large\n");
             return game;
         }
         if ((int)(col+strlen(tiles)) > newwidth) {
@@ -456,7 +533,9 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         }
     }
     else if (direction == 'V') {
-        if (col > (*game).boardWidth-1) {
+        if (row > (*game).boardHeight-1) {
+           // printf("Row too large\n");
+            *num_tiles_placed = 0;
             return game;
         }
         if ((int)(row+strlen(tiles)) > newheight) {
@@ -465,7 +544,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     }
     //printf("Height: %d\nWidth: %d\n", newheight, newwidth);
     // New height and width necessary are now obtained
-
+    change.tile_positions = malloc(change.amountOfTiles*sizeof(int*));
 
     // Resize the board and depth arrays with realloc and malloc:
     for (int i = 0; i < (*game).boardHeight; i++) {
@@ -595,6 +674,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     }
 
     if (overlap == 1) {
+        //printf("Overlapping character found!\n");
         undo_place_tiles(game);
         for (int i = 0; i < newheight; i++) {
             free(depthcopy[i]);
@@ -629,7 +709,17 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         return game;
     }
 
-
+    if (prevdepth != 0 && checkForTouchingWords(game, depthcopy, direction, startindex) == 0) {
+        
+        //printf("A word is not touching anything!\n");
+        undo_place_tiles(game);
+        for (int i = 0; i < newheight; i++) {
+            free(depthcopy[i]);
+        }
+        free(depthcopy);
+        *num_tiles_placed = 0;
+        return game;
+    }
 
 
     for (int i = 0; i < newheight; i++) {
@@ -643,6 +733,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
 }
 
 GameState* undo_place_tiles(GameState *game) {
+    //printf("Undoing!");
     Change* recentchange = changepeek(changes);
     if (recentchange == NULL) {
         return game;
