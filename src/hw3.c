@@ -210,15 +210,20 @@ int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int st
                     oldword[k-wordstartindex] = oldline[k];
                 }
                 oldword[k-wordstartindex] = '\0';
-                //printf("Word minus 1 is %s, Old word is %s\n", newwordminus1, oldword);
-                for (k = 0; k < (int)strlen(word); k++) {
-                    //printf("%c vs %c\n", newwordminus1[k], oldword[k]);
-                    if (newwordminus1[k] == oldword[k]) {
-                        coveredWord = 1;
-                    }
-                    else {
-                        coveredWord = 0;
-                        break;
+                //printf("Word minus 1 is %s, Old word is %s, length of old word string is %d\n", newwordminus1, oldword, (int)strlen(oldword));
+                if ((int)strlen(oldword) == 1) {
+                    coveredWord = 0;
+                }
+                else {
+                    for (k = 0; k < (int)strlen(word); k++) {
+                        //printf("%c vs %c\n", newwordminus1[k], oldword[k]);
+                        if (newwordminus1[k] == oldword[k]) {
+                            coveredWord = 1;
+                        }
+                        else {
+                            coveredWord = 0;
+                            break;
+                        }
                     }
                 }
                 //printf("coveredWord: %d\n", coveredWord);
@@ -264,15 +269,20 @@ int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int st
                     oldword[k-wordstartindex] = oldline[k];
                 }
                 oldword[k-wordstartindex] = '\0';
-                //printf("Word minus 1 is %s, Old word is %s\n", newwordminus1, oldword);
-                for (k = 0; k < (int)strlen(word); k++) {
-                    //printf("%c vs %c\n", newwordminus1[k], oldword[k]);
-                    if (newwordminus1[k] == oldword[k]) {
-                        coveredWord = 1;
-                    }
-                    else {
-                        coveredWord = 0;
-                        break;
+                //printf("Word minus 1 is %s, Old word is %s, length of old word string is %d\n", newwordminus1, oldword, (int)strlen(oldword));
+                if ((int)strlen(oldword) == 1) {
+                    coveredWord = 0;
+                }
+                else {
+                    for (k = 0; k < (int)strlen(word); k++) {
+                        //printf("%c vs %c\n", newwordminus1[k], oldword[k]);
+                        if (newwordminus1[k] == oldword[k]) {
+                            coveredWord = 1;
+                        }
+                        else {
+                            coveredWord = 0;
+                            break;
+                        }
                     }
                 }
                 //printf("coveredWord: %d\n", coveredWord);
@@ -486,7 +496,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                     change.tile_positions[change.amountOfTiles-1] = malloc(2*sizeof(int)); 
                     change.tile_positions[change.amountOfTiles-1][0] = row+i;
                     change.tile_positions[change.amountOfTiles-1][1] = col;
-                    //printf("Added %c to the board position [%d][%d]\n", tiles[i], row+i, col);
+                    //printf("Added %c to the board position [%d][%d]\n", peek((*game).currentBoard[row+i][col]), row+i, col);
                 }
                 else {
                     for (int j = 0; j < newheight; j++) {
@@ -509,7 +519,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                     change.tile_positions[change.amountOfTiles-1] = malloc(2*sizeof(int)); 
                     change.tile_positions[change.amountOfTiles-1][0] = row;
                     change.tile_positions[change.amountOfTiles-1][1] = col+i;
-                    //printf("Added %c to the board position [%d][%d]\n", tiles[i], row, col+i);
+                    //printf("Added %c to the board position [%d][%d]\n", peek((*game).currentBoard[row][col+i]), row, col+i);
                 }
                 else {
                     for (int j = 0; j < newheight; j++) {
@@ -570,8 +580,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         free(depthcopy[i]);
     }
     free(depthcopy);
-    //printf("%d\n", change.amountOfTiles);
-    *num_tiles_placed = change.amountOfTiles;
+    //printf("No Undo done\n");
     return game;
 }
 
