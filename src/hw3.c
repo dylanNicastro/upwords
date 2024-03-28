@@ -176,6 +176,40 @@ int parseWords(GameState *game, char direction, int startindex, char*** dict, in
     return illegalWord;
 }
 
+// int checkForTouchingWords(GameState *game, int** oldDepth, char direction, int startindex) {
+//     int touchingWord = 0;
+//     char *depthline = malloc(((*game).boardWidth + 1)*sizeof(char));
+//     char *olddepthline = malloc(((*game).boardWidth + 1)*sizeof(char));
+//     if (direction == 'H') {
+//         int endindex = startindex+2;
+//         if (startindex == 0) {
+//             startindex = 2;
+//             endindex = 2;
+//         }
+//         else if (startindex == (*game).boardHeight-1) {
+//             startindex;
+//             endindex = startindex;
+//         }   
+//         for (int i = startindex-1; i < endindex && i != startindex; i++) {
+//             printf("%d\n",i);
+//             int j = 0;
+//             for (j = 0; j < (*game).boardWidth; j++) {
+//                 depthline[j] = (*game).boardDepth[i][j] + '0';
+//                 olddepthline[j] = oldDepth[i][j] + '0';
+//             }
+//             depthline[j] = '\0';
+//             olddepthline[j] = '\0';
+//             if (atoi(depthline) > 0) {
+//                 touchingWord = 1;
+//             }
+//         }
+
+//     }
+//     free(depthline);
+//     free(olddepthline);
+// }
+
+
 int checkForCoveredWords(GameState *game, int** oldDepth, char direction, int startindex) {
     int coveredWord = 0;
     char *line = malloc(((*game).boardWidth + 1)*sizeof(char));
@@ -309,6 +343,8 @@ ChangeStack changes;
 char** dict;
 int dict_memsize;
 int dict_elements;
+
+int num_tiles;
 
 GameState* initialize_game_state(const char *filename) {
     FILE *inputfile;
@@ -476,10 +512,12 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     }
 
 
-    //Change newchange;
-    //newchange.tiles = tiles;
+
+    
+    
 
     // for each char in the tiles string:
+    int overlap = 0;
     for (int i = 0; i < (int)(strlen(tiles)); i++) {
         // if it is not a space:
         if (tiles[i] != ' ') {
@@ -489,6 +527,10 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                 // col is constant, current row is row+i
                 // if the tile is not full:
                 if ((*game).boardDepth[row+i][col] < 5) {
+                    if (tiles[i] == peek((*game).currentBoard[row+i][col])) {
+                        overlap = 1;
+                    }
+                    //printf("Pushing %c on top of %c at [%d][%d]\n", tiles[i], peek((*game).currentBoard[row+i][col]), row+i, col);
                     (*game).boardDepth[row+i][col]++;
                     push(&(*game).currentBoard[row+i][col], tiles[i]);
                     change.amountOfTiles++;
@@ -504,6 +546,7 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                     }
                     free(depthcopy);
                     free(change.tile_positions);
+                    *num_tiles_placed = 0;
                     return game;
                 }
             }
@@ -512,6 +555,10 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                 // row is constant, current col is col+i
                 // if the tile is not full:
                 if ((*game).boardDepth[row][col+i] < 5) {
+                    if (tiles[i] == peek((*game).currentBoard[row][col+i])) {
+                        overlap = 1;
+                    }
+                    //printf("Pushing %c on top of %c at [%d][%d]\n", tiles[i], peek((*game).currentBoard[row][col+i]), row, col+i);
                     (*game).boardDepth[row][col+i]++;
                     push(&(*game).currentBoard[row][col+i], tiles[i]);
                     change.amountOfTiles++;
@@ -527,12 +574,14 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
                     }
                     free(depthcopy);
                     free(change.tile_positions);
+                    *num_tiles_placed = 0;
                     return game;
                 }
             }
         }
+        
     }
-    *num_tiles_placed = change.amountOfTiles;
+    num_tiles = change.amountOfTiles;
     
     changepush(&changes, change);
     //printf("%d\n",change.amountOfTiles);
@@ -545,6 +594,17 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
         startindex = row;
     }
 
+    if (overlap == 1) {
+        undo_place_tiles(game);
+        for (int i = 0; i < newheight; i++) {
+            free(depthcopy[i]);
+        }
+        free(depthcopy);
+        *num_tiles_placed = 0;
+        return game;
+    }
+
+
     if (parseWords(game, direction, startindex, &dict, &dict_elements) == 1) {
         
         //printf("Illegal word detected!\n");
@@ -553,10 +613,8 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
             free(depthcopy[i]);
         }
         free(depthcopy);
+        *num_tiles_placed = 0;
         return game;
-    }
-    else {
-        //printf("All words found were legal.\n");
     }
 
 
@@ -567,10 +625,8 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
             free(depthcopy[i]);
         }
         free(depthcopy);
+        *num_tiles_placed = 0;
         return game;
-    }
-    else {
-        //printf("No words were covered.\n");
     }
 
 
@@ -581,6 +637,8 @@ GameState* place_tiles(GameState *game, int row, int col, char direction, const 
     }
     free(depthcopy);
     //printf("No Undo done\n");
+
+    *num_tiles_placed = num_tiles;
     return game;
 }
 
@@ -620,6 +678,7 @@ GameState* undo_place_tiles(GameState *game) {
         }
     }
     (*recentchange).amountOfTiles = 0;
+    num_tiles = 0;
     changepop(&changes);
     //printf("Top: %d\nPeek at top of stack change's amount of tiles: %d\n",(changes.top), (*changepeek(changes)).amountOfTiles);
     free((*recentchange).tile_positions);
