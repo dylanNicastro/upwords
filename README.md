@@ -1,8 +1,8 @@
 # Upwords
 This file contains the functions required to implement the board game Upwords. A full description of the game can be found [here](https://winning-moves.com/images/UPWORDS_rulesv2.pdf).
 
-> [!WARNING]
-> These are only helper functions, so nothing will happen if you compile and run this file by itself!
+> [!IMPORTANT]
+> `functions.c` does not do anything on its own, as this file is intended for use within a larger project.
 
 ## words.txt:
 This file contains all valid words that the game will accept. If you want to add or remove a word, simply edit this file.
