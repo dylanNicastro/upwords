@@ -71,7 +71,7 @@ void load_dict(char*** dict, int* dict_memsize, int* dict_elements) {
     *dict_elements = 0;
     *dict_memsize = 1*sizeof(char*);
     *dict = malloc(*dict_memsize);
-    wordsList = fopen("tests/words.txt", "r");
+    wordsList = fopen("words.txt", "r");
     char buffer[50]; // THE LONGEST ENGLISH WORD IS 45 CHARACTERS
     while (fscanf(wordsList, "%49s%*c", buffer) == 1) {
         for (int i = 0; buffer[i] != '\0'; i++) {
